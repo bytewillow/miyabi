@@ -21,6 +21,7 @@ import (
 	"github.com/ppxb/miyabi/internal/ent/metadatacache"
 	"github.com/ppxb/miyabi/internal/ent/movie"
 	"github.com/ppxb/miyabi/internal/ent/offlinedownload"
+	"github.com/ppxb/miyabi/internal/ent/plexnotification"
 	"github.com/ppxb/miyabi/internal/ent/setting"
 	"github.com/ppxb/miyabi/internal/ent/subscription"
 	"github.com/ppxb/miyabi/internal/ent/subtitle"
@@ -46,6 +47,8 @@ type Client struct {
 	Movie *MovieClient
 	// OfflineDownload is the client for interacting with the OfflineDownload builders.
 	OfflineDownload *OfflineDownloadClient
+	// PlexNotification is the client for interacting with the PlexNotification builders.
+	PlexNotification *PlexNotificationClient
 	// Setting is the client for interacting with the Setting builders.
 	Setting *SettingClient
 	// Subscription is the client for interacting with the Subscription builders.
@@ -75,6 +78,7 @@ func (c *Client) init() {
 	c.MetadataCache = NewMetadataCacheClient(c.config)
 	c.Movie = NewMovieClient(c.config)
 	c.OfflineDownload = NewOfflineDownloadClient(c.config)
+	c.PlexNotification = NewPlexNotificationClient(c.config)
 	c.Setting = NewSettingClient(c.config)
 	c.Subscription = NewSubscriptionClient(c.config)
 	c.Subtitle = NewSubtitleClient(c.config)
@@ -179,6 +183,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		MetadataCache:    NewMetadataCacheClient(cfg),
 		Movie:            NewMovieClient(cfg),
 		OfflineDownload:  NewOfflineDownloadClient(cfg),
+		PlexNotification: NewPlexNotificationClient(cfg),
 		Setting:          NewSettingClient(cfg),
 		Subscription:     NewSubscriptionClient(cfg),
 		Subtitle:         NewSubtitleClient(cfg),
@@ -210,6 +215,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		MetadataCache:    NewMetadataCacheClient(cfg),
 		Movie:            NewMovieClient(cfg),
 		OfflineDownload:  NewOfflineDownloadClient(cfg),
+		PlexNotification: NewPlexNotificationClient(cfg),
 		Setting:          NewSettingClient(cfg),
 		Subscription:     NewSubscriptionClient(cfg),
 		Subtitle:         NewSubtitleClient(cfg),
@@ -246,8 +252,8 @@ func (c *Client) Close() error {
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
 		c.Actor, c.EmbyNotification, c.File, c.MetadataCache, c.Movie,
-		c.OfflineDownload, c.Setting, c.Subscription, c.Subtitle, c.Tag, c.Task,
-		c.ViewedMovie,
+		c.OfflineDownload, c.PlexNotification, c.Setting, c.Subscription, c.Subtitle,
+		c.Tag, c.Task, c.ViewedMovie,
 	} {
 		n.Use(hooks...)
 	}
@@ -258,8 +264,8 @@ func (c *Client) Use(hooks ...Hook) {
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
 		c.Actor, c.EmbyNotification, c.File, c.MetadataCache, c.Movie,
-		c.OfflineDownload, c.Setting, c.Subscription, c.Subtitle, c.Tag, c.Task,
-		c.ViewedMovie,
+		c.OfflineDownload, c.PlexNotification, c.Setting, c.Subscription, c.Subtitle,
+		c.Tag, c.Task, c.ViewedMovie,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -280,6 +286,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.Movie.mutate(ctx, m)
 	case *OfflineDownloadMutation:
 		return c.OfflineDownload.mutate(ctx, m)
+	case *PlexNotificationMutation:
+		return c.PlexNotification.mutate(ctx, m)
 	case *SettingMutation:
 		return c.Setting.mutate(ctx, m)
 	case *SubscriptionMutation:
@@ -1192,6 +1200,139 @@ func (c *OfflineDownloadClient) mutate(ctx context.Context, m *OfflineDownloadMu
 	}
 }
 
+// PlexNotificationClient is a client for the PlexNotification schema.
+type PlexNotificationClient struct {
+	config
+}
+
+// NewPlexNotificationClient returns a client for the PlexNotification from the given config.
+func NewPlexNotificationClient(c config) *PlexNotificationClient {
+	return &PlexNotificationClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `plexnotification.Hooks(f(g(h())))`.
+func (c *PlexNotificationClient) Use(hooks ...Hook) {
+	c.hooks.PlexNotification = append(c.hooks.PlexNotification, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `plexnotification.Intercept(f(g(h())))`.
+func (c *PlexNotificationClient) Intercept(interceptors ...Interceptor) {
+	c.inters.PlexNotification = append(c.inters.PlexNotification, interceptors...)
+}
+
+// Create returns a builder for creating a PlexNotification entity.
+func (c *PlexNotificationClient) Create() *PlexNotificationCreate {
+	mutation := newPlexNotificationMutation(c.config, OpCreate)
+	return &PlexNotificationCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of PlexNotification entities.
+func (c *PlexNotificationClient) CreateBulk(builders ...*PlexNotificationCreate) *PlexNotificationCreateBulk {
+	return &PlexNotificationCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *PlexNotificationClient) MapCreateBulk(slice any, setFunc func(*PlexNotificationCreate, int)) *PlexNotificationCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &PlexNotificationCreateBulk{err: fmt.Errorf("calling to PlexNotificationClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*PlexNotificationCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &PlexNotificationCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for PlexNotification.
+func (c *PlexNotificationClient) Update() *PlexNotificationUpdate {
+	mutation := newPlexNotificationMutation(c.config, OpUpdate)
+	return &PlexNotificationUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *PlexNotificationClient) UpdateOne(_m *PlexNotification) *PlexNotificationUpdateOne {
+	mutation := newPlexNotificationMutation(c.config, OpUpdateOne, withPlexNotification(_m))
+	return &PlexNotificationUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *PlexNotificationClient) UpdateOneID(id int) *PlexNotificationUpdateOne {
+	mutation := newPlexNotificationMutation(c.config, OpUpdateOne, withPlexNotificationID(id))
+	return &PlexNotificationUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for PlexNotification.
+func (c *PlexNotificationClient) Delete() *PlexNotificationDelete {
+	mutation := newPlexNotificationMutation(c.config, OpDelete)
+	return &PlexNotificationDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *PlexNotificationClient) DeleteOne(_m *PlexNotification) *PlexNotificationDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *PlexNotificationClient) DeleteOneID(id int) *PlexNotificationDeleteOne {
+	builder := c.Delete().Where(plexnotification.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &PlexNotificationDeleteOne{builder}
+}
+
+// Query returns a query builder for PlexNotification.
+func (c *PlexNotificationClient) Query() *PlexNotificationQuery {
+	return &PlexNotificationQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypePlexNotification},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a PlexNotification entity by its id.
+func (c *PlexNotificationClient) Get(ctx context.Context, id int) (*PlexNotification, error) {
+	return c.Query().Where(plexnotification.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *PlexNotificationClient) GetX(ctx context.Context, id int) *PlexNotification {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *PlexNotificationClient) Hooks() []Hook {
+	return c.hooks.PlexNotification
+}
+
+// Interceptors returns the client interceptors.
+func (c *PlexNotificationClient) Interceptors() []Interceptor {
+	return c.inters.PlexNotification
+}
+
+func (c *PlexNotificationClient) mutate(ctx context.Context, m *PlexNotificationMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&PlexNotificationCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&PlexNotificationUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&PlexNotificationUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&PlexNotificationDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown PlexNotification mutation op: %q", m.Op())
+	}
+}
+
 // SettingClient is a client for the Setting schema.
 type SettingClient struct {
 	config
@@ -2025,11 +2166,13 @@ func (c *ViewedMovieClient) mutate(ctx context.Context, m *ViewedMovieMutation) 
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		Actor, EmbyNotification, File, MetadataCache, Movie, OfflineDownload, Setting,
-		Subscription, Subtitle, Tag, Task, ViewedMovie []ent.Hook
+		Actor, EmbyNotification, File, MetadataCache, Movie, OfflineDownload,
+		PlexNotification, Setting, Subscription, Subtitle, Tag, Task,
+		ViewedMovie []ent.Hook
 	}
 	inters struct {
-		Actor, EmbyNotification, File, MetadataCache, Movie, OfflineDownload, Setting,
-		Subscription, Subtitle, Tag, Task, ViewedMovie []ent.Interceptor
+		Actor, EmbyNotification, File, MetadataCache, Movie, OfflineDownload,
+		PlexNotification, Setting, Subscription, Subtitle, Tag, Task,
+		ViewedMovie []ent.Interceptor
 	}
 )

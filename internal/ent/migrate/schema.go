@@ -208,6 +208,30 @@ var (
 			},
 		},
 	}
+	// PlexNotificationsColumns holds the columns for the "plex_notifications" table.
+	PlexNotificationsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "path", Type: field.TypeString, Unique: true},
+		{Name: "revision", Type: field.TypeInt, Default: 1},
+		{Name: "attempts", Type: field.TypeInt, Default: 0},
+		{Name: "next_attempt_at", Type: field.TypeTime},
+		{Name: "last_error", Type: field.TypeString, Default: ""},
+	}
+	// PlexNotificationsTable holds the schema information for the "plex_notifications" table.
+	PlexNotificationsTable = &schema.Table{
+		Name:       "plex_notifications",
+		Columns:    PlexNotificationsColumns,
+		PrimaryKey: []*schema.Column{PlexNotificationsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "plexnotification_next_attempt_at",
+				Unique:  false,
+				Columns: []*schema.Column{PlexNotificationsColumns[6]},
+			},
+		},
+	}
 	// SettingsColumns holds the columns for the "settings" table.
 	SettingsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -440,6 +464,7 @@ var (
 		MetadataCachesTable,
 		MoviesTable,
 		OfflineDownloadsTable,
+		PlexNotificationsTable,
 		SettingsTable,
 		SubscriptionsTable,
 		SubtitlesTable,

@@ -29,6 +29,7 @@ type Dependencies struct {
 	Maintenance    MaintenanceManager
 	Network        NetworkManager
 	Emby           EmbyManager
+	Plex           PlexManager
 	Frontend       fs.FS
 	STRMToken      string
 	TrustedProxies []string
@@ -84,6 +85,9 @@ func NewRouter(deps Dependencies) *gin.Engine {
 	settingsAPI.GET("/emby", embyConfigHandler(deps.Emby))
 	settingsAPI.PUT("/emby", embyUpdateHandler(deps.Emby))
 	settingsAPI.POST("/emby/test", embyTestHandler(deps.Emby))
+	settingsAPI.GET("/plex", plexConfigHandler(deps.Plex))
+	settingsAPI.PUT("/plex", plexUpdateHandler(deps.Plex))
+	settingsAPI.POST("/plex/test", plexTestHandler(deps.Plex))
 	settingsAPI.GET("/subscription", subscriptionSettingsGetHandler(deps.Monitor))
 	settingsAPI.PUT("/subscription", subscriptionSettingsUpdateHandler(deps.Monitor))
 
@@ -91,7 +95,7 @@ func NewRouter(deps Dependencies) *gin.Engine {
 	protected.GET("/library/movies/:id", libraryMovieHandler(deps.Library))
 	protected.POST("/library/movies/:id/scrape", libraryMovieScrapeHandler(deps.Library))
 	protected.GET("/library/movies/:id/previews/:index", libraryPreviewHandler(deps.Library, deps.Metadata))
-	protected.POST("/library/scan", libraryScanHandler(deps.Library, deps.Emby))
+	protected.POST("/library/scan", libraryScanHandler(deps.Library, deps.Emby, deps.Plex))
 	protected.POST("/library/rebuild", libraryRebuildHandler(deps.Library))
 	protected.GET("/library/artwork/:key", libraryArtworkHandler(deps.Artwork))
 

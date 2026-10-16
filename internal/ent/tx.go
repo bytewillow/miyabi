@@ -24,6 +24,8 @@ type Tx struct {
 	Movie *MovieClient
 	// OfflineDownload is the client for interacting with the OfflineDownload builders.
 	OfflineDownload *OfflineDownloadClient
+	// PlexNotification is the client for interacting with the PlexNotification builders.
+	PlexNotification *PlexNotificationClient
 	// Setting is the client for interacting with the Setting builders.
 	Setting *SettingClient
 	// Subscription is the client for interacting with the Subscription builders.
@@ -173,6 +175,7 @@ func (tx *Tx) init() {
 	tx.MetadataCache = NewMetadataCacheClient(tx.config)
 	tx.Movie = NewMovieClient(tx.config)
 	tx.OfflineDownload = NewOfflineDownloadClient(tx.config)
+	tx.PlexNotification = NewPlexNotificationClient(tx.config)
 	tx.Setting = NewSettingClient(tx.config)
 	tx.Subscription = NewSubscriptionClient(tx.config)
 	tx.Subtitle = NewSubtitleClient(tx.config)
