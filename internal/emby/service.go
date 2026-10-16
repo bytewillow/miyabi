@@ -76,7 +76,7 @@ func NewService(ctx context.Context, db *ent.Client, initial Config, deps Depend
 	s.actors = newActorSync(db, s.client, s.currentConfig, deps.GFriends, deps.Media)
 	if s.exportMgr != nil {
 		cfgExport := s.exportMgr.Config()
-		cfgExport.EmbyDir, cfgExport.PublicURL = cfg.LocalDir, cfg.PublicURL
+		cfgExport.EmbyDir = cfg.LocalDir // PublicURL is owned by the strmurl setting now.
 		s.exportMgr.Set(cfgExport)
 	}
 
@@ -121,7 +121,6 @@ func (s *Service) UpdateConfig(ctx context.Context, cfg Config) error {
 	if cfg.PublicURL == "" {
 		cfg.PublicURL = s.defaultPublicURL
 	}
-	oldPublicURL := s.cfg.PublicURL
 	oldLocalDir := s.cfg.LocalDir
 	token := s.exportMgr.Config().STRMToken
 	s.mu.Unlock()
@@ -143,11 +142,11 @@ func (s *Service) UpdateConfig(ctx context.Context, cfg Config) error {
 	if exportMgr != nil && cfg.LocalDir != "" {
 		exportMgr.Set(export.Config{
 			EmbyDir:   cfg.LocalDir,
-			PublicURL: cfg.PublicURL,
+			PublicURL: exportMgr.Config().PublicURL, // owned by the strmurl setting
 			STRMToken: token,
 		})
 	}
-	if exportMgr != nil && (oldPublicURL != cfg.PublicURL || oldLocalDir != cfg.LocalDir) {
+	if exportMgr != nil && oldLocalDir != cfg.LocalDir {
 		s.startSTRMRewrite(exportMgr)
 	}
 

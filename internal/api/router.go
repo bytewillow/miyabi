@@ -30,6 +30,7 @@ type Dependencies struct {
 	Network        NetworkManager
 	Emby           EmbyManager
 	Plex           PlexManager
+	STRMSettings   STRMSettingsManager
 	Frontend       fs.FS
 	STRMToken      string
 	TrustedProxies []string
@@ -88,6 +89,8 @@ func NewRouter(deps Dependencies) *gin.Engine {
 	settingsAPI.GET("/plex", plexConfigHandler(deps.Plex))
 	settingsAPI.PUT("/plex", plexUpdateHandler(deps.Plex))
 	settingsAPI.POST("/plex/test", plexTestHandler(deps.Plex))
+	settingsAPI.GET("/strm", strmConfigHandler(deps.STRMSettings))
+	settingsAPI.PUT("/strm", strmUpdateHandler(deps.STRMSettings))
 	settingsAPI.GET("/subscription", subscriptionSettingsGetHandler(deps.Monitor))
 	settingsAPI.PUT("/subscription", subscriptionSettingsUpdateHandler(deps.Monitor))
 

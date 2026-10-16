@@ -34,6 +34,7 @@ import (
 	"github.com/ppxb/miyabi/internal/offline"
 	"github.com/ppxb/miyabi/internal/plex"
 	"github.com/ppxb/miyabi/internal/strm"
+	"github.com/ppxb/miyabi/internal/strmurl"
 	"github.com/ppxb/miyabi/internal/subtitle"
 	"github.com/ppxb/miyabi/internal/tasks"
 )
@@ -175,6 +176,8 @@ func New(cfg *config.Config, logger *slog.Logger) (*App, error) {
 		_ = store.Close()
 		return nil, fmt.Errorf("initialize plex service: %w", err)
 	}
+	embyCfg, _ := embySvc.Config(ctx)
+	strmSvc := strmurl.NewService(store.Client, exportMgr, embyCfg.PublicURL)
 	// This is the only cycle: library -> Emby -> catalogue -> library.
 	// Bind it before starting task pools or accepting requests.
 	notifier := mediaNotifierSet{embySvc, plexSvc}
@@ -223,6 +226,7 @@ func New(cfg *config.Config, logger *slog.Logger) (*App, error) {
 		Network:        networkSvc,
 		Emby:           embySvc,
 		Plex:           plexSvc,
+		STRMSettings:   strmSvc,
 		Frontend:       miyabi.Frontend(),
 		STRMToken:      cfg.STRMToken,
 		TrustedProxies: cfg.TrustedProxies,
