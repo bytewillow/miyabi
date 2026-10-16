@@ -85,6 +85,8 @@ type Drive struct {
 	cachedAccount           pan.Account
 	cachedAccountTime       time.Time
 	cachedCredentialVersion uint64
+	lastAccountFailure      error
+	lastAccountFailureTime  time.Time
 
 	login         qrLogin
 	mountListener MountListener

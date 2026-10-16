@@ -15,7 +15,16 @@ import (
 
 // Sync polls active and pending 115 offline tasks and updates their state in the database.
 // The scheduler runs syncs serially; per-magnet locks coordinate with submissions.
+// A 115 rate limit is transient and unactionable here, so it is swallowed
+// instead of logging an error every scheduler cycle.
 func (service *Service) Sync(ctx context.Context) error {
+	if err := service.sync(ctx); err != nil && !pan.IsRateLimited(err) {
+		return err
+	}
+	return nil
+}
+
+func (service *Service) sync(ctx context.Context) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
