@@ -10,7 +10,7 @@ import (
 
 func TestScannerDefaultPacingAndCancellation(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		scanner := New(nil, nil, nil, nil, nil, nil)
+		scanner := New(nil, nil, nil, nil, nil, nil, CleanupConfig{})
 		start := time.Now()
 		if err := scanner.pace(t.Context()); err != nil {
 			t.Fatal(err)
@@ -28,7 +28,7 @@ func TestScannerDefaultPacingAndCancellation(t *testing.T) {
 		if err := scanner.pace(deadline); !errors.Is(err, context.DeadlineExceeded) {
 			t.Fatalf("pacing deadline: %v", err)
 		}
-		fast := New(nil, nil, nil, nil, nil, func(context.Context) error { return nil })
+		fast := New(nil, nil, nil, nil, nil, func(context.Context) error { return nil }, CleanupConfig{})
 		start = time.Now()
 		if err := fast.pace(t.Context()); err != nil || time.Now() != start {
 			t.Fatalf("explicit pacing override: %v", err)

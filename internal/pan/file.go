@@ -95,6 +95,25 @@ func (client *Client) List(ctx context.Context, accessToken, directoryID string,
 	return page, nil
 }
 
+// DeleteFiles moves files to the 115 recycle bin, from where the user can
+// restore them; it is not a permanent erase. The open API groups the batch
+// under the files' parent directory.
+func (client *Client) DeleteFiles(ctx context.Context, accessToken, parentID string, fileIDs []string) error {
+	if len(fileIDs) == 0 {
+		return nil
+	}
+	_, err := apiRequest[apiResponse](
+		client,
+		client.http.R().SetContext(ctx).SetAuthToken(accessToken).SetFormData(map[string]string{
+			"file_ids": strings.Join(fileIDs, ","), "parent_id": parentID,
+		}),
+		http.MethodPost,
+		apiURL+"/open/ufile/delete",
+		"file deletion",
+	)
+	return err
+}
+
 // SHA1 computes the uppercase hexadecimal SHA-1 digest for a byte slice.
 func SHA1(body []byte) string {
 	sum := sha1.Sum(body)

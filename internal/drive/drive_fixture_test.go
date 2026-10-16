@@ -22,19 +22,19 @@ var testSource = domain.LibrarySource{
 // stubClient is a 115 client whose calls can be replaced per test. Unset
 // calls behave like a healthy account so fixtures need no boilerplate.
 type stubClient struct {
-	account        func(context.Context, string) (pan.Account, error)
-	beginLogin     func(context.Context) (*pan.Login, error)
-	loginStatus    func(context.Context, *pan.Login) (pan.LoginState, error)
-	exchangeToken  func(context.Context, *pan.Login) (pan.Tokens, error)
-	refreshToken   func(context.Context, string) (pan.Tokens, error)
-	list           func(context.Context, string, string, int, int) (pan.FilePage, error)
-	info           func(context.Context, string, string) (pan.FileInfo, error)
-	readMetadata   func(context.Context, string, string, int64) ([]byte, error)
-	addOffline     func(context.Context, string, string, string) (string, error)
-	removeOffline  func(context.Context, string, string) error
-	offlineTasks   func(context.Context, string, int) (pan.OfflinePage, error)
-	playURL        func(context.Context, string, string, string) ([]pan.PlaySource, error)
-	downloadURL    func(context.Context, string, string) (string, error)
+	account       func(context.Context, string) (pan.Account, error)
+	beginLogin    func(context.Context) (*pan.Login, error)
+	loginStatus   func(context.Context, *pan.Login) (pan.LoginState, error)
+	exchangeToken func(context.Context, *pan.Login) (pan.Tokens, error)
+	refreshToken  func(context.Context, string) (pan.Tokens, error)
+	list          func(context.Context, string, string, int, int) (pan.FilePage, error)
+	info          func(context.Context, string, string) (pan.FileInfo, error)
+	readMetadata  func(context.Context, string, string, int64) ([]byte, error)
+	addOffline    func(context.Context, string, string, string) (string, error)
+	removeOffline func(context.Context, string, string) error
+	offlineTasks  func(context.Context, string, int) (pan.OfflinePage, error)
+	playURL       func(context.Context, string, string, string) ([]pan.PlaySource, error)
+	downloadURL   func(context.Context, string, string) (string, error)
 }
 
 func (c *stubClient) Close() {}
@@ -100,6 +100,10 @@ func (c *stubClient) AddOffline(ctx context.Context, token, uri, directory strin
 		return c.addOffline(ctx, token, uri, directory)
 	}
 	return "", nil
+}
+
+func (c *stubClient) DeleteFiles(ctx context.Context, token, parentID string, fileIDs []string) error {
+	return nil
 }
 
 func (c *stubClient) RemoveOffline(ctx context.Context, token, hash string) error {
