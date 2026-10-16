@@ -36,7 +36,10 @@ func TestConstructorRestoresExportConfigAndInjectsScanScheduler(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer svc.Close()
-	want := export.Config{EmbyDir: saved.LocalDir, PublicURL: saved.PublicURL, STRMToken: "playback-token"}
+	// The constructor restores the export directory from the saved Emby
+	// config, but the STRM PublicURL is owned by the strmurl setting and
+	// must be left at the export manager's current value.
+	want := export.Config{EmbyDir: saved.LocalDir, PublicURL: "http://default.example", STRMToken: "playback-token"}
 	if got := mgr.Config(); got != want {
 		t.Fatalf("constructor returned with stale export config: %+v", got)
 	}
