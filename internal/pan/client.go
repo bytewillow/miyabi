@@ -265,6 +265,16 @@ func apiRequest[T apiPayload](client *Client, request *resty.Request, method, en
 	if err != nil {
 		return result, err
 	}
+	// Error envelopes carry no usable payload (115 returns "data": []), so
+	// check state/code before decoding into the success shape; otherwise a
+	// genuine API error (rate limit, auth, ...) is masked by a decode error.
+	var envelope apiResponse
+	if err := json.Unmarshal(response.Body(), &envelope); err != nil {
+		return result, fmt.Errorf("decode 115 %s: %w", action, err)
+	}
+	if err := envelope.err(); err != nil {
+		return result, err
+	}
 	if err := json.Unmarshal(response.Body(), &result); err != nil {
 		return result, fmt.Errorf("decode 115 %s: %w", action, err)
 	}

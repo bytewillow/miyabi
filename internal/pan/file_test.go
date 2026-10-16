@@ -136,4 +136,3 @@ func TestClientRetryPolicy(t *testing.T) {
 		}
 	})
 }
-

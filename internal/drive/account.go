@@ -12,7 +12,11 @@ import (
 )
 
 const (
-	accountCacheTTL = 60 * time.Second
+	accountCacheTTL = 5 * time.Minute
+	// accountFailureBackoff keeps a failed account lookup (e.g. a 115 rate
+	// limit) from being retried on every sync cycle, which would hold the
+	// limit open indefinitely.
+	accountFailureBackoff = 2 * time.Minute
 	// upstreamTimeout bounds shared upstream work that outlives an individual caller.
 	upstreamTimeout = 45 * time.Second
 )
@@ -72,12 +76,27 @@ func (d *Drive) loadAccount(ctx context.Context, state snapshot) (pan.Account, e
 		d.accountCacheMu.Unlock()
 		return cached, nil
 	}
+	if d.lastAccountFailure != nil && time.Since(d.lastAccountFailureTime) < accountFailureBackoff {
+		err := d.lastAccountFailure
+		d.accountCacheMu.Unlock()
+		return pan.Account{}, err
+	}
 	d.accountCacheMu.Unlock()
 
 	account, err := d.fetchAccount(ctx, state)
 	if err != nil {
+		// Only rate-limit failures back off; other transient failures stay
+		// immediately retryable, as before.
+		if pan.IsRateLimited(err) {
+			d.accountCacheMu.Lock()
+			d.lastAccountFailure, d.lastAccountFailureTime = err, time.Now()
+			d.accountCacheMu.Unlock()
+		}
 		return pan.Account{}, err
 	}
+	d.accountCacheMu.Lock()
+	d.lastAccountFailure, d.lastAccountFailureTime = nil, time.Time{}
+	d.accountCacheMu.Unlock()
 
 	d.accountCacheMu.Lock()
 	defer d.accountCacheMu.Unlock()
@@ -95,6 +114,7 @@ func (d *Drive) invalidateAccountCache() {
 	d.cachedAccount = pan.Account{}
 	d.cachedAccountTime = time.Time{}
 	d.cachedCredentialVersion = 0
+	d.lastAccountFailure, d.lastAccountFailureTime = nil, time.Time{}
 	d.accountCacheMu.Unlock()
 }
 

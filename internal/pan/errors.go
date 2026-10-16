@@ -20,6 +20,15 @@ type apiError struct {
 	Message string
 }
 
+// RateLimitCode is 115's "access limit reached, retry later" error code.
+const RateLimitCode = 770004
+
+// IsRateLimited reports whether err is a 115 rate-limit response.
+func IsRateLimited(err error) bool {
+	var apiErr *apiError
+	return errors.As(err, &apiErr) && apiErr.Code == RateLimitCode
+}
+
 func (err *apiError) Error() string {
 	return fmt.Sprintf("115 error %d: %s", err.Code, err.Message)
 }
