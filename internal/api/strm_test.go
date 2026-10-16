@@ -26,6 +26,18 @@ func (s *strmRelayStub) StreamURL(ctx context.Context, fileID, userAgent string)
 	return s.streamURL, nil
 }
 
+func (s *strmRelayStub) OpenStream(ctx context.Context, fileID, method string, headers http.Header) (*http.Response, error) {
+	header := http.Header{}
+	header.Set("Content-Type", "video/mp4")
+	header.Set("Content-Range", "bytes 1000-2000/104857600")
+	header.Set("Accept-Ranges", "bytes")
+	return &http.Response{
+		StatusCode: http.StatusPartialContent,
+		Header:     header,
+		Body:       io.NopCloser(strings.NewReader("chunk")),
+	}, nil
+}
+
 func (s *strmRelayStub) Probe(ctx context.Context, address string, headers http.Header) (*http.Response, error) {
 	s.probeCalls++
 	if s.headErr != nil {
@@ -112,6 +124,32 @@ func TestSTRMStreamHandlerForwardsHEAD(t *testing.T) {
 	}
 	if rec.Header().Get("Accept-Ranges") != "bytes" {
 		t.Fatalf("expected Accept-Ranges bytes, got %s", rec.Header().Get("Accept-Ranges"))
+	}
+}
+
+func TestSTRMProxyModeRelaysMediaInsteadOfRedirecting(t *testing.T) {
+	stub := &strmRelayStub{streamURL: "https://cdn.115.com/video/original.mp4"}
+	router := NewRouter(Dependencies{
+		Access:    NewAccessGateService("", ""),
+		STRM:      stub,
+		Logger:    slog.New(slog.NewTextHandler(io.Discard, nil)),
+		STRMProxy: true,
+	})
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/strm/play/12345", nil)
+	req.Header.Set("Range", "bytes=1000-2000")
+	router.ServeHTTP(rec, req)
+	if rec.Code != http.StatusPartialContent {
+		t.Fatalf("expected 206 from the relayed stream, got %d", rec.Code)
+	}
+	if location := rec.Header().Get("Location"); location != "" {
+		t.Fatalf("proxy mode must not redirect, got Location %q", location)
+	}
+	if rec.Header().Get("Content-Range") != "bytes 1000-2000/104857600" {
+		t.Fatalf("missing relayed Content-Range: %v", rec.Header())
+	}
+	if rec.Body.String() != "chunk" {
+		t.Fatalf("expected relayed body, got %q", rec.Body.String())
 	}
 }
 
