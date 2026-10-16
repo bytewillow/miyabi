@@ -28,6 +28,7 @@ type Client interface {
 	ExchangeToken(context.Context, *pan.Login) (pan.Tokens, error)
 	RefreshToken(context.Context, string) (pan.Tokens, error)
 	List(context.Context, string, string, int, int) (pan.FilePage, error)
+	DeleteFiles(context.Context, string, string, []string) error
 	Info(context.Context, string, string) (pan.FileInfo, error)
 	ReadMetadata(context.Context, string, string, int64) ([]byte, error)
 	AddOffline(context.Context, string, string, string) (string, error)

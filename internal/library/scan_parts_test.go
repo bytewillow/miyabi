@@ -24,7 +24,7 @@ func TestScanRepairsReportedLetterPartsAndExportsInOrder(t *testing.T) {
 	lib, client := panConcurrencyFixture(t)
 	ctx, source := t.Context(), *lib.drive.Source()
 	cfg := export.Config{EmbyDir: t.TempDir(), PublicURL: "http://localhost"}
-	lib.scanner = scan.New(lib.drive, lib.database, lib.images, lib.tasks, export.NewManager(cfg), func(context.Context) error { return nil })
+	lib.scanner = scan.New(lib.drive, lib.database, lib.images, lib.tasks, export.NewManager(cfg), func(context.Context) error { return nil }, scan.CleanupConfig{})
 	// The real 115 sample lists B first; each part is also on a separate page.
 	videos := []pan.File{
 		{ID: "3537613304031610685", ParentID: "parts", Name: "onsd-340B.mp4", Size: 914101803},

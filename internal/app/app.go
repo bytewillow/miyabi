@@ -23,6 +23,7 @@ import (
 	mediaimage "github.com/ppxb/miyabi/internal/image"
 	"github.com/ppxb/miyabi/internal/javbus"
 	"github.com/ppxb/miyabi/internal/library"
+	"github.com/ppxb/miyabi/internal/library/scan"
 	"github.com/ppxb/miyabi/internal/library/scrape"
 	"github.com/ppxb/miyabi/internal/maintenance"
 	"github.com/ppxb/miyabi/internal/metadata"
@@ -95,7 +96,13 @@ func New(cfg *config.Config, logger *slog.Logger) (*App, error) {
 	exportMgr := export.NewManager(export.Config{
 		EmbyDir: cfg.EmbyDir, PublicURL: cfg.PublicURL, STRMToken: cfg.STRMToken,
 	})
-	libSvc := library.New(store.Client, driveSvc, taskSvc, images, library.Options{ExportManager: exportMgr})
+	libSvc := library.New(store.Client, driveSvc, taskSvc, images, library.Options{
+		ExportManager: exportMgr,
+		JunkCleanup: scan.CleanupConfig{
+			Enabled:        cfg.JunkCleanup,
+			MaxAdVideoSize: int64(cfg.JunkMaxVideoMB) << 20,
+		},
+	})
 	javbusClient, err := javbus.New(javbus.Options{Proxy: networkSvc.ProxyManager()})
 	if err != nil {
 		driveSvc.Close()

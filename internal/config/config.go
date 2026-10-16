@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/ppxb/miyabi/internal/netx"
@@ -30,9 +31,13 @@ type Config struct {
 	PlexServerURL  string
 	PlexToken      string
 	PlexMediaPath  string
+	// JunkCleanup deletes ad clips and junk files from source folders during
+	// scans (to the recoverable 115 recycle bin).
+	JunkCleanup    bool
+	JunkMaxVideoMB int
 	// STRMProxy relays media through this server instead of redirecting to
 	// the user-agent-bound 115 CDN URL (required for Plex playback).
-	STRMProxy bool
+	STRMProxy      bool
 	TrustedProxies []string
 }
 
@@ -73,6 +78,16 @@ func Load() (Config, error) {
 	if plexEnabledStr == "" && (plexServerURL != "" || plexToken != "") {
 		plexEnabled = true
 	}
+	junkCleanup := true
+	if v := strings.ToLower(strings.TrimSpace(os.Getenv("MIYABI_JUNK_CLEANUP"))); v == "0" || v == "false" || v == "off" {
+		junkCleanup = false
+	}
+	junkMaxVideoMB := 100
+	if v := strings.TrimSpace(os.Getenv("MIYABI_JUNK_MAX_VIDEO_MB")); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			junkMaxVideoMB = n
+		}
+	}
 
 	var trustedProxies []string
 	if rawProxies := strings.TrimSpace(os.Getenv("MIYABI_TRUSTED_PROXIES")); rawProxies != "" {
@@ -102,6 +117,8 @@ func Load() (Config, error) {
 		PlexServerURL:  plexServerURL,
 		PlexToken:      plexToken,
 		PlexMediaPath:  plexMediaPath,
+		JunkCleanup:    junkCleanup,
+		JunkMaxVideoMB: junkMaxVideoMB,
 		TrustedProxies: trustedProxies,
 	}
 	if err := cfg.validate(); err != nil {

@@ -77,6 +77,8 @@ type Options struct {
 	ExportManager *export.Manager
 	// Pacing defaults to scan.DefaultPacing; tests can provide a no-op.
 	Pacing func(context.Context) error
+	// JunkCleanup controls scan-time deletion of ad clips and junk files.
+	JunkCleanup scan.CleanupConfig
 }
 
 func New(database *ent.Client, d *drive.Drive, tasks *tasks.Service, images *mediaimage.Cache, options Options) *Service {
@@ -84,7 +86,7 @@ func New(database *ent.Client, d *drive.Drive, tasks *tasks.Service, images *med
 		database:     database,
 		drive:        d,
 		tasks:        tasks,
-		scanner:      scan.New(d, database, images, tasks, options.ExportManager, options.Pacing),
+		scanner:      scan.New(d, database, images, tasks, options.ExportManager, options.Pacing, options.JunkCleanup),
 		localScanner: scan.NewLocalScanner(database, images),
 		exportMgr:    options.ExportManager,
 	}

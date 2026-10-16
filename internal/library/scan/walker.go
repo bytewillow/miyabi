@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"math/rand/v2"
 	"path"
 	"slices"
@@ -42,10 +43,11 @@ type Scanner struct {
 	exportMgr *export.Manager
 	pace      func(context.Context) error
 	notifier  export.MediaNotifier
+	cleanup   CleanupConfig
 }
 
 // New creates a new Scanner with the provided dependencies.
-func New(driveSvc *drive.Drive, db *ent.Client, images *mediaimage.Cache, tasksSvc *tasks.Service, exportMgr *export.Manager, pace func(context.Context) error) *Scanner {
+func New(driveSvc *drive.Drive, db *ent.Client, images *mediaimage.Cache, tasksSvc *tasks.Service, exportMgr *export.Manager, pace func(context.Context) error, cleanup CleanupConfig) *Scanner {
 	if pace == nil {
 		pace = DefaultPacing
 	}
@@ -56,6 +58,7 @@ func New(driveSvc *drive.Drive, db *ent.Client, images *mediaimage.Cache, tasksS
 		tasksSvc:  tasksSvc,
 		exportMgr: exportMgr,
 		pace:      pace,
+		cleanup:   cleanup,
 	}
 }
 
@@ -250,9 +253,33 @@ func (r *scanRun) walk(ctx context.Context, start Directory, isResume bool) erro
 	return r.reconcile(ctx)
 }
 
+// cleanupJunk deletes ad clips and junk files found in one directory to the
+// 115 recycle bin and returns the videos that remain for indexing. Files are
+// excluded from indexing even when the deletion call fails, so a bad clip
+// cannot pollute a movie's part list; the next scan retries the deletion.
+func (r *scanRun) cleanupJunk(ctx context.Context, directory Directory, entries []pan.File, videos []Video) []Video {
+	junk, kept := classifyJunk(entries, videos, r.scanner.cleanup.MaxAdVideoSize)
+	if len(junk) == 0 {
+		return videos
+	}
+	ids := make([]string, 0, len(junk))
+	for _, entry := range junk {
+		ids = append(ids, entry.ID)
+	}
+	if err := r.session.DeleteFiles(ctx, directory.ID, ids); err != nil {
+		slog.WarnContext(ctx, "delete junk files to recycle bin failed", "directory", directory.Path, "count", len(ids), "error", err)
+		return kept
+	}
+	r.payload.Scan.JunkRemoved += len(junk)
+	r.payload.Scan.VideoFiles -= len(videos) - len(kept)
+	slog.InfoContext(ctx, "deleted junk files to recycle bin", "directory", directory.Path, "count", len(junk))
+	return kept
+}
+
 func (r *scanRun) indexDirectory(ctx context.Context, directory Directory) error {
 	var directoryVideos []Video
 	var sidecars []pan.File
+	var allFiles []pan.File
 
 	err := drive.WalkFilePages(ctx, func(offset int) (pan.FilePage, error) {
 		if r.scanner.pace != nil {
@@ -280,6 +307,7 @@ func (r *scanRun) indexDirectory(ctx context.Context, directory Directory) error
 				continue
 			}
 			r.payload.Scan.FilesScanned++
+			allFiles = append(allFiles, entry)
 			if strings.EqualFold(path.Ext(entry.Name), ".nfo") {
 				sidecars = append(sidecars, entry)
 			}
@@ -309,6 +337,12 @@ func (r *scanRun) indexDirectory(ctx context.Context, directory Directory) error
 	}
 	if err := ResolveNFOCodes(ctx, r.session, sidecars, directoryVideos); err != nil {
 		return err
+	}
+
+	// Cleanup runs after code resolution so genuine multi-part releases are
+	// recognized by their shared code and kept.
+	if r.scanner.cleanup.Enabled && len(allFiles) > 0 {
+		directoryVideos = r.cleanupJunk(ctx, directory, allFiles, directoryVideos)
 	}
 
 	// Save directory videos in chunks of 100.

@@ -19,6 +19,8 @@ type Session interface {
 	// It scopes derived data without exposing credentials or expiring on token refresh.
 	AuthorizationVersion() uint64
 	List(ctx context.Context, dirID string, offset int) (pan.FilePage, error)
+	// DeleteFiles moves files into the 115 recycle bin (recoverable).
+	DeleteFiles(ctx context.Context, parentID string, fileIDs []string) error
 	Info(ctx context.Context, fileID string) (pan.FileInfo, error)
 	Read(ctx context.Context, pickCode string, limit int64) ([]byte, error)
 	WithSource(ctx context.Context, fn func() error) error
@@ -100,6 +102,20 @@ func (s *sourceSession) List(ctx context.Context, dirID string, offset int) (pan
 	return readSource(ctx, s, func(token string) (pan.FilePage, error) {
 		return s.drive.client.List(ctx, token, dirID, offset, 100)
 	})
+}
+
+func (s *sourceSession) DeleteFiles(ctx context.Context, parentID string, fileIDs []string) error {
+	state, err := s.drive.sourceState(s.source, s.version)
+	if err != nil {
+		return err
+	}
+	_, err = withPanSourceToken(ctx, s.drive, state, func(token string) (struct{}, error) {
+		return struct{}{}, s.drive.client.DeleteFiles(ctx, token, parentID, fileIDs)
+	})
+	if err != nil {
+		return err
+	}
+	return s.checkSource()
 }
 
 func (s *sourceSession) Info(ctx context.Context, fileID string) (pan.FileInfo, error) {
