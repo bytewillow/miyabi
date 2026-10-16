@@ -222,6 +222,7 @@ func New(cfg *config.Config, logger *slog.Logger) (*App, error) {
 		STRMSettings:   strmSvc,
 		Frontend:       miyabi.Frontend(),
 		STRMToken:      cfg.STRMToken,
+		STRMProxy:      cfg.STRMProxy,
 		TrustedProxies: cfg.TrustedProxies,
 	})
 

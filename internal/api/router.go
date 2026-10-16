@@ -33,6 +33,7 @@ type Dependencies struct {
 	STRMSettings   STRMSettingsManager
 	Frontend       fs.FS
 	STRMToken      string
+	STRMProxy      bool
 	TrustedProxies []string
 }
 
@@ -67,7 +68,7 @@ func NewRouter(deps Dependencies) *gin.Engine {
 	authAPI.POST("/login", accessLoginHandler(deps.Access, loginLimiter))
 
 	// Exported .strm files keep this path; it must stay stable across releases.
-	strmHandler := strmStreamHandler(deps.STRM, deps.STRMToken, deps.Access)
+	strmHandler := strmStreamHandler(deps.STRM, deps.STRMToken, deps.Access, deps.STRMProxy)
 	api.GET("/strm/play/:fileID", noStore(), strmHandler)
 	api.HEAD("/strm/play/:fileID", noStore(), strmHandler)
 	api.GET("/strm/play/:fileID/*filename", noStore(), strmHandler)

@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"crypto/subtle"
+	"io"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -13,12 +14,14 @@ import (
 type STRMRelay interface {
 	StreamURL(ctx context.Context, fileID, userAgent string) (string, error)
 	Probe(context.Context, string, http.Header) (*http.Response, error)
+	OpenStream(ctx context.Context, fileID, method string, headers http.Header) (*http.Response, error)
 }
 
 // strmStreamHandler redirects media servers to a valid 115 stream URL.
 // HEAD requests are answered from the CDN so clients can probe the stream
-// without following the redirect.
-func strmStreamHandler(relay STRMRelay, token string, gate AccessGate) gin.HandlerFunc {
+// without following the redirect. In proxy mode the media itself is
+// relayed instead, for players that cannot use user-agent-bound URLs.
+func strmStreamHandler(relay STRMRelay, token string, gate AccessGate, proxy bool) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		uri, ok := bindURI[struct {
 			FileID string `uri:"fileID" binding:"required,max=128"`
@@ -28,6 +31,24 @@ func strmStreamHandler(relay STRMRelay, token string, gate AccessGate) gin.Handl
 		}
 		if !strmAuthorized(c, token, gate) {
 			c.Error(domain.E(domain.KindUnauthorized, "无效的播放令牌", nil))
+			return
+		}
+		if proxy {
+			response, err := relay.OpenStream(c.Request.Context(), uri.FileID, c.Request.Method, c.Request.Header)
+			if err != nil {
+				c.Error(err)
+				return
+			}
+			defer response.Body.Close()
+			for _, name := range []string{"Content-Type", "Content-Length", "Content-Range", "Accept-Ranges", "ETag", "Last-Modified"} {
+				if value := response.Header.Get(name); value != "" {
+					c.Header(name, value)
+				}
+			}
+			c.Status(response.StatusCode)
+			if c.Request.Method != http.MethodHead {
+				_, _ = io.Copy(c.Writer, response.Body)
+			}
 			return
 		}
 		streamURL, err := relay.StreamURL(c.Request.Context(), uri.FileID, c.Request.UserAgent())

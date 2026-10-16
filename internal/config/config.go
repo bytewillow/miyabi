@@ -30,6 +30,9 @@ type Config struct {
 	PlexServerURL  string
 	PlexToken      string
 	PlexMediaPath  string
+	// STRMProxy relays media through this server instead of redirecting to
+	// the user-agent-bound 115 CDN URL (required for Plex playback).
+	STRMProxy bool
 	TrustedProxies []string
 }
 
@@ -86,6 +89,7 @@ func Load() (Config, error) {
 		EmbyDir:        embyDir,
 		PublicURL:      publicURL,
 		STRMToken:      strings.TrimSpace(os.Getenv("MIYABI_STRM_TOKEN")),
+		STRMProxy:      os.Getenv("MIYABI_STRM_PROXY") == "1" || strings.EqualFold(os.Getenv("MIYABI_STRM_PROXY"), "true"),
 		LogLevel:       logLevel,
 		AccessPassword: os.Getenv("MIYABI_ACCESS_PASSWORD"),
 		JWTSecret:      strings.TrimSpace(os.Getenv("MIYABI_JWT_SECRET")),

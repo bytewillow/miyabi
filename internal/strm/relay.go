@@ -124,6 +124,72 @@ func (relay *Relay) Probe(ctx context.Context, address string, headers http.Head
 	return relay.drive.OpenMedia(ctx, http.MethodHead, address, headers)
 }
 
+// proxyUserAgent is the single user agent used both to obtain a download
+// URL and to fetch it in proxy mode. 115 binds every download URL to the
+// requesting user agent, so a URL handed from a media server to a player
+// with a different agent is rejected (403); proxying through one fixed
+// agent is the only way redirect-intolerant players can stream.
+const proxyUserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
+
+// OpenStream resolves the file's media URL and fetches it with the same
+// fixed user agent, so the caller can relay the response to any player
+// regardless of the player's own user agent.
+func (relay *Relay) OpenStream(ctx context.Context, fileID, method string, headers http.Header) (*http.Response, error) {
+	address, err := relay.StreamURL(ctx, fileID, proxyUserAgent)
+	if err != nil {
+		return nil, err
+	}
+	forward := http.Header{}
+	if values := headers.Values("Range"); len(values) > 0 {
+		forward["Range"] = values
+	}
+	if value := headers.Get("If-Range"); value != "" {
+		forward.Set("If-Range", value)
+	}
+	forward.Set("User-Agent", proxyUserAgent)
+	response, err := relay.drive.OpenMedia(ctx, method, address, forward)
+	if err != nil {
+		return nil, err
+	}
+	// The 115 CDN labels downloads application/octet-stream, which strict
+	// players (AVFoundation-based ones) refuse to play. Name the real type
+	// from the indexed file extension, like the redirect probe path does.
+	if contentType := strings.TrimSpace(response.Header.Get("Content-Type")); contentType == "" || contentType == "application/octet-stream" {
+		response.Header.Set("Content-Type", relay.mediaType(ctx, fileID))
+	}
+	return response, nil
+}
+
+// mediaType maps the indexed file's extension to a MIME type, defaulting
+// to video/mp4 when the name is unknown.
+func (relay *Relay) mediaType(ctx context.Context, fileID string) string {
+	record, err := relay.database.File.Query().Where(file.FileIDEQ(fileID)).Select(file.FieldName).First(ctx)
+	name := ""
+	if err == nil && record != nil {
+		name = record.Name
+	}
+	switch strings.ToLower(name[strings.LastIndex(name, ".")+1:]) {
+	case "mp4", "m4v":
+		return "video/mp4"
+	case "mkv":
+		return "video/x-matroska"
+	case "mov":
+		return "video/quicktime"
+	case "avi":
+		return "video/x-msvideo"
+	case "wmv":
+		return "video/x-ms-wmv"
+	case "ts", "m2ts":
+		return "video/mp2t"
+	case "webm":
+		return "video/webm"
+	case "flv":
+		return "video/x-flv"
+	default:
+		return "video/mp4"
+	}
+}
+
 // pickCode prefers the indexed pick code and asks 115 only for videos indexed
 // before pick codes were stored.
 func (relay *Relay) pickCode(ctx context.Context, sess drive.Session, fileID string) (string, error) {
