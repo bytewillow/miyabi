@@ -120,10 +120,16 @@ func libraryMoviesHandler(library LibraryManager) gin.HandlerFunc {
 	}
 }
 
-func libraryScanHandler(library LibraryManager, emby EmbyManager) gin.HandlerFunc {
+func libraryScanHandler(library LibraryManager, emby EmbyManager, plex PlexManager) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if emby != nil {
 			if err := emby.RetryPending(c.Request.Context()); err != nil {
+				c.Error(err)
+				return
+			}
+		}
+		if plex != nil {
+			if err := plex.RetryPending(c.Request.Context()); err != nil {
 				c.Error(err)
 				return
 			}

@@ -31,6 +31,7 @@ import (
 	"github.com/ppxb/miyabi/internal/network"
 	"github.com/ppxb/miyabi/internal/netx"
 	"github.com/ppxb/miyabi/internal/offline"
+	"github.com/ppxb/miyabi/internal/plex"
 	"github.com/ppxb/miyabi/internal/strm"
 	"github.com/ppxb/miyabi/internal/subtitle"
 	"github.com/ppxb/miyabi/internal/tasks"
@@ -57,6 +58,7 @@ type App struct {
 	scrape    *scrape.Service
 	metadata  *metadata.Service
 	embySvc   *emby.Service
+	plexSvc   *plex.Service
 }
 
 // New initializes all services, database connections, and registers task handlers.
@@ -151,15 +153,32 @@ func New(cfg *config.Config, logger *slog.Logger) (*App, error) {
 		_ = store.Close()
 		return nil, fmt.Errorf("initialize emby service: %w", err)
 	}
+	plexSvc, err := plex.NewService(ctx, store.Client, plex.Config{
+		Enabled:   cfg.PlexEnabled,
+		ServerURL: cfg.PlexServerURL,
+		Token:     cfg.PlexToken,
+		MediaPath: cfg.PlexMediaPath,
+		LocalDir:  cfg.EmbyDir,
+	})
+	if err != nil {
+		embySvc.Close()
+		metadataSvc.Close()
+		catalogueSvc.Close()
+		driveSvc.Close()
+		_ = store.Close()
+		return nil, fmt.Errorf("initialize plex service: %w", err)
+	}
 	// This is the only cycle: library -> Emby -> catalogue -> library.
 	// Bind it before starting task pools or accepting requests.
-	libSvc.SetMediaNotifier(embySvc)
+	notifier := mediaNotifierSet{embySvc, plexSvc}
+	libSvc.SetMediaNotifier(notifier)
 	scrapeSvc := scrape.New(store.Client, driveSvc, metadataSvc, images, taskSvc, scrape.Dependencies{
-		ExportManager: exportMgr, MediaNotifier: embySvc, Subtitles: subtitleSvc,
+		ExportManager: exportMgr, MediaNotifier: notifier, Subtitles: subtitleSvc,
 	})
 	maintenanceSvc, err := maintenance.New(cfg.DataDir, store.Client, images, scrapeSvc)
 	if err != nil {
 		scrapeSvc.Close()
+		plexSvc.Close()
 		embySvc.Close()
 		metadataSvc.Close()
 		catalogueSvc.Close()
@@ -196,6 +215,7 @@ func New(cfg *config.Config, logger *slog.Logger) (*App, error) {
 		Maintenance:    maintenanceSvc,
 		Network:        networkSvc,
 		Emby:           embySvc,
+		Plex:           plexSvc,
 		Frontend:       miyabi.Frontend(),
 		STRMToken:      cfg.STRMToken,
 		TrustedProxies: cfg.TrustedProxies,
@@ -221,6 +241,7 @@ func New(cfg *config.Config, logger *slog.Logger) (*App, error) {
 		scrape:    scrapeSvc,
 		metadata:  metadataSvc,
 		embySvc:   embySvc,
+		plexSvc:   plexSvc,
 	}, nil
 }
 
@@ -278,6 +299,9 @@ func (a *App) Run(ctx context.Context) error {
 
 // Close releases resources held by the application.
 func (a *App) Close() error {
+	if a.plexSvc != nil {
+		a.plexSvc.Close()
+	}
 	if a.embySvc != nil {
 		a.embySvc.Close()
 	}

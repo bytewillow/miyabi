@@ -9,6 +9,7 @@ import { DataSection } from '@/features/settings/data-section'
 import { EmbySection } from '@/features/settings/emby-section'
 import { NetworkSection } from '@/features/settings/network-section'
 import { PanSection } from '@/features/settings/pan-section'
+import { PlexSection } from '@/features/settings/plex-section'
 import { PrivacySection } from '@/features/settings/privacy-section'
 import { SubscriptionSection } from '@/features/settings/subscription-section'
 import { ScrapingSection } from '@/features/settings/scraping-section'
@@ -34,6 +35,8 @@ function SettingsPage() {
           <ScrapingSection />
           <Separator />
           <EmbySection />
+          <Separator />
+          <PlexSection />
           <Separator />
           <PanSection />
           <Separator />

@@ -24,6 +24,9 @@ type Movie func(*sql.Selector)
 // OfflineDownload is the predicate function for offlinedownload builders.
 type OfflineDownload func(*sql.Selector)
 
+// PlexNotification is the predicate function for plexnotification builders.
+type PlexNotification func(*sql.Selector)
+
 // Setting is the predicate function for setting builders.
 type Setting func(*sql.Selector)
 

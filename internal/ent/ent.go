@@ -18,6 +18,7 @@ import (
 	"github.com/ppxb/miyabi/internal/ent/metadatacache"
 	"github.com/ppxb/miyabi/internal/ent/movie"
 	"github.com/ppxb/miyabi/internal/ent/offlinedownload"
+	"github.com/ppxb/miyabi/internal/ent/plexnotification"
 	"github.com/ppxb/miyabi/internal/ent/setting"
 	"github.com/ppxb/miyabi/internal/ent/subscription"
 	"github.com/ppxb/miyabi/internal/ent/subtitle"
@@ -90,6 +91,7 @@ func checkColumn(t, c string) error {
 			metadatacache.Table:    metadatacache.ValidColumn,
 			movie.Table:            movie.ValidColumn,
 			offlinedownload.Table:  offlinedownload.ValidColumn,
+			plexnotification.Table: plexnotification.ValidColumn,
 			setting.Table:          setting.ValidColumn,
 			subscription.Table:     subscription.ValidColumn,
 			subtitle.Table:         subtitle.ValidColumn,

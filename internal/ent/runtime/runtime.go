@@ -12,6 +12,7 @@ import (
 	"github.com/ppxb/miyabi/internal/ent/metadatacache"
 	"github.com/ppxb/miyabi/internal/ent/movie"
 	"github.com/ppxb/miyabi/internal/ent/offlinedownload"
+	"github.com/ppxb/miyabi/internal/ent/plexnotification"
 	"github.com/ppxb/miyabi/internal/ent/schema"
 	"github.com/ppxb/miyabi/internal/ent/setting"
 	"github.com/ppxb/miyabi/internal/ent/subscription"
@@ -250,6 +251,41 @@ func init() {
 	offlinedownloadDescAwaitingLocation := offlinedownloadFields[13].Descriptor()
 	// offlinedownload.DefaultAwaitingLocation holds the default value on creation for the awaiting_location field.
 	offlinedownload.DefaultAwaitingLocation = offlinedownloadDescAwaitingLocation.Default.(bool)
+	plexnotificationMixin := schema.PlexNotification{}.Mixin()
+	plexnotificationMixinFields0 := plexnotificationMixin[0].Fields()
+	_ = plexnotificationMixinFields0
+	plexnotificationFields := schema.PlexNotification{}.Fields()
+	_ = plexnotificationFields
+	// plexnotificationDescCreatedAt is the schema descriptor for created_at field.
+	plexnotificationDescCreatedAt := plexnotificationMixinFields0[0].Descriptor()
+	// plexnotification.DefaultCreatedAt holds the default value on creation for the created_at field.
+	plexnotification.DefaultCreatedAt = plexnotificationDescCreatedAt.Default.(func() time.Time)
+	// plexnotificationDescUpdatedAt is the schema descriptor for updated_at field.
+	plexnotificationDescUpdatedAt := plexnotificationMixinFields0[1].Descriptor()
+	// plexnotification.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	plexnotification.DefaultUpdatedAt = plexnotificationDescUpdatedAt.Default.(func() time.Time)
+	// plexnotification.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	plexnotification.UpdateDefaultUpdatedAt = plexnotificationDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// plexnotificationDescPath is the schema descriptor for path field.
+	plexnotificationDescPath := plexnotificationFields[0].Descriptor()
+	// plexnotification.PathValidator is a validator for the "path" field. It is called by the builders before save.
+	plexnotification.PathValidator = plexnotificationDescPath.Validators[0].(func(string) error)
+	// plexnotificationDescRevision is the schema descriptor for revision field.
+	plexnotificationDescRevision := plexnotificationFields[1].Descriptor()
+	// plexnotification.DefaultRevision holds the default value on creation for the revision field.
+	plexnotification.DefaultRevision = plexnotificationDescRevision.Default.(int)
+	// plexnotificationDescAttempts is the schema descriptor for attempts field.
+	plexnotificationDescAttempts := plexnotificationFields[2].Descriptor()
+	// plexnotification.DefaultAttempts holds the default value on creation for the attempts field.
+	plexnotification.DefaultAttempts = plexnotificationDescAttempts.Default.(int)
+	// plexnotificationDescNextAttemptAt is the schema descriptor for next_attempt_at field.
+	plexnotificationDescNextAttemptAt := plexnotificationFields[3].Descriptor()
+	// plexnotification.DefaultNextAttemptAt holds the default value on creation for the next_attempt_at field.
+	plexnotification.DefaultNextAttemptAt = plexnotificationDescNextAttemptAt.Default.(func() time.Time)
+	// plexnotificationDescLastError is the schema descriptor for last_error field.
+	plexnotificationDescLastError := plexnotificationFields[4].Descriptor()
+	// plexnotification.DefaultLastError holds the default value on creation for the last_error field.
+	plexnotification.DefaultLastError = plexnotificationDescLastError.Default.(string)
 	settingMixin := schema.Setting{}.Mixin()
 	settingMixinFields0 := settingMixin[0].Fields()
 	_ = settingMixinFields0

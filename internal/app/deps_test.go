@@ -17,7 +17,7 @@ func TestBusinessPackagesDoNotImportEachOther(t *testing.T) {
 	business := []string{
 		"catalogue", "metadata", "metadata/providers",
 		"library", "library/scan", "library/scrape",
-		"offline", "monitor", "strm", "maintenance", "emby", "subtitle", "network",
+		"offline", "monitor", "strm", "maintenance", "emby", "plex", "subtitle", "network",
 	}
 	shared := []string{"drive", "tasks", "database", "domain", "domain/subtitle", "domain/download", "export", "netx"}
 	// Keep cross-package exceptions explicit and directional.

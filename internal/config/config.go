@@ -26,6 +26,10 @@ type Config struct {
 	EmbyAPIKey     string
 	EmbyMediaPath  string
 	EmbySyncActors bool
+	PlexEnabled    bool
+	PlexServerURL  string
+	PlexToken      string
+	PlexMediaPath  string
 	TrustedProxies []string
 }
 
@@ -58,6 +62,14 @@ func Load() (Config, error) {
 	}
 	embySyncActorsStr := strings.ToLower(strings.TrimSpace(os.Getenv("MIYABI_EMBY_SYNC_ACTORS")))
 	embySyncActors := embySyncActorsStr != "false" && embySyncActorsStr != "0"
+	plexServerURL := strings.TrimRight(strings.TrimSpace(os.Getenv("MIYABI_PLEX_SERVER_URL")), "/")
+	plexToken := strings.TrimSpace(os.Getenv("MIYABI_PLEX_TOKEN"))
+	plexMediaPath := strings.TrimSpace(os.Getenv("MIYABI_PLEX_MEDIA_PATH"))
+	plexEnabledStr := strings.ToLower(strings.TrimSpace(os.Getenv("MIYABI_PLEX_ENABLED")))
+	plexEnabled := plexEnabledStr == "true" || plexEnabledStr == "1"
+	if plexEnabledStr == "" && (plexServerURL != "" || plexToken != "") {
+		plexEnabled = true
+	}
 
 	var trustedProxies []string
 	if rawProxies := strings.TrimSpace(os.Getenv("MIYABI_TRUSTED_PROXIES")); rawProxies != "" {
@@ -82,6 +94,10 @@ func Load() (Config, error) {
 		EmbyAPIKey:     embyAPIKey,
 		EmbyMediaPath:  embyMediaPath,
 		EmbySyncActors: embySyncActors,
+		PlexEnabled:    plexEnabled,
+		PlexServerURL:  plexServerURL,
+		PlexToken:      plexToken,
+		PlexMediaPath:  plexMediaPath,
 		TrustedProxies: trustedProxies,
 	}
 	if err := cfg.validate(); err != nil {
