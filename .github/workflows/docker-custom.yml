@@ -1,0 +1,61 @@
+name: Build custom image
+
+# The fork's custom branch is the deployment branch: every push builds the
+# Docker image and publishes it to GHCR so production hosts only pull.
+# (Upstream's docker-publish.yml stays untouched; it fires on v*.*.* tags
+# and targets the upstream image name.)
+
+on:
+  push:
+    branches: [custom]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  IMAGE_NAME: ghcr.io/${{ github.repository }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # No docker/login-action here: its credential check pings
+      # https://ghcr.io/v2/ with a scope-less token, which GHCR denies
+      # for workflow GITHUB_TOKENs from this repository (measured:
+      # "denied: denied"), while the repository-scoped token exchange
+      # that buildx performs at push time succeeds. Writing the client
+      # config directly gives buildx the credentials without the ping.
+      - name: Write GHCR credentials for buildx
+        env:
+          GT: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p ~/.docker
+          AUTH=$(printf '%s' "${{ github.actor }}:$GT" | base64 -w0)
+          printf '{"auths":{"ghcr.io":{"auth":"%s"}}}' "$AUTH" > ~/.docker/config.json
+
+      - name: Resolve short SHA
+        id: vars
+        run: echo "short=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ env.IMAGE_NAME }}:${{ steps.vars.outputs.short }}
+            ${{ env.IMAGE_NAME }}:custom
+          build-args: |
+            VERSION=custom-${{ steps.vars.outputs.short }}
+            REVISION=${{ github.sha }}
+          cache-from: type=gha,scope=miyabi-custom
+          cache-to: type=gha,mode=max,scope=miyabi-custom
