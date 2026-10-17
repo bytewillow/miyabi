@@ -29,6 +29,10 @@ type Client interface {
 	RefreshToken(context.Context, string) (pan.Tokens, error)
 	List(context.Context, string, string, int, int) (pan.FilePage, error)
 	DeleteFiles(context.Context, string, string, []string) error
+	EnsureDir(context.Context, string, string, string) (string, error)
+	MoveFiles(context.Context, string, string, []string) error
+	RenameFile(context.Context, string, string, string) error
+	UploadFile(context.Context, string, string, string, []byte) error
 	Info(context.Context, string, string) (pan.FileInfo, error)
 	ReadMetadata(context.Context, string, string, int64) ([]byte, error)
 	AddOffline(context.Context, string, string, string) (string, error)

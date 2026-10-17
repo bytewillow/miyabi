@@ -56,6 +56,12 @@ type Notifier interface {
 	WakePool()
 }
 
+// OrganizeMode reports whether completed scrapes are organized in place on
+// 115 instead of being written to the local STRM export tree.
+type OrganizeMode interface {
+	PanEnabled() bool
+}
+
 // SubtitleExporter writes a movie's subtitles beside its exported .strm file.
 type SubtitleExporter interface {
 	Export(ctx context.Context, movieID int, target subtitlemeta.Target) (int, error)
@@ -87,6 +93,12 @@ type Service struct {
 
 	exportMgr     *export.Manager
 	mediaNotifier export.MediaNotifier
+	organize      OrganizeMode
+}
+
+// panOrganize reports whether the in-place 115 organization mode is active.
+func (service *Service) panOrganize() bool {
+	return service.organize != nil && service.organize.PanEnabled()
 }
 
 func (service *Service) exportConfig() export.Config {
@@ -100,6 +112,7 @@ type Dependencies struct {
 	ExportManager *export.Manager
 	MediaNotifier export.MediaNotifier
 	Subtitles     SubtitleExporter
+	Organize      OrganizeMode
 }
 
 // New installs dependencies before starting subtitle workers.
@@ -114,6 +127,7 @@ func New(db *ent.Client, d *drive.Drive, metadata MetadataSource, images *mediai
 		exportMgr:     deps.ExportManager,
 		mediaNotifier: deps.MediaNotifier,
 		subtitles:     deps.Subtitles,
+		organize:      deps.Organize,
 	}
 	service.subtitleQueue = newSubtitleQueue(service)
 	return service

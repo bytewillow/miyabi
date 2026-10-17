@@ -111,6 +111,15 @@ func WriteMedia(cfg Config, code string, doc nfo.Movie, videos []pan.File, poste
 }
 
 // naturalCompare compares two strings using natural numeric order (e.g. "cd2" < "cd10").
+// SortedVideos returns the videos in the deterministic order the export
+// layout assigns part numbers in, without mutating the input.
+func SortedVideos(videos []pan.File) []pan.File {
+	sorted := make([]pan.File, len(videos))
+	copy(sorted, videos)
+	sortFiles(sorted)
+	return sorted
+}
+
 func naturalCompare(a, b string) int {
 	aLower, bLower := strings.ToLower(a), strings.ToLower(b)
 	i, j := 0, 0

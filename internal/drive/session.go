@@ -21,6 +21,14 @@ type Session interface {
 	List(ctx context.Context, dirID string, offset int) (pan.FilePage, error)
 	// DeleteFiles moves files into the 115 recycle bin (recoverable).
 	DeleteFiles(ctx context.Context, parentID string, fileIDs []string) error
+	// EnsureDir returns a child directory by name, creating it when missing.
+	EnsureDir(ctx context.Context, parentID, name string) (string, error)
+	// MoveFiles relocates files into a directory, preserving file IDs.
+	MoveFiles(ctx context.Context, targetDirID string, fileIDs []string) error
+	// RenameFile changes a file's name in place.
+	RenameFile(ctx context.Context, fileID, name string) error
+	// UploadFile stores small sidecar content (NFO, artwork) in a directory.
+	UploadFile(ctx context.Context, dirID, name string, content []byte) error
 	Info(ctx context.Context, fileID string) (pan.FileInfo, error)
 	Read(ctx context.Context, pickCode string, limit int64) ([]byte, error)
 	WithSource(ctx context.Context, fn func() error) error
@@ -111,6 +119,62 @@ func (s *sourceSession) DeleteFiles(ctx context.Context, parentID string, fileID
 	}
 	_, err = withPanSourceToken(ctx, s.drive, state, func(token string) (struct{}, error) {
 		return struct{}{}, s.drive.client.DeleteFiles(ctx, token, parentID, fileIDs)
+	})
+	if err != nil {
+		return err
+	}
+	return s.checkSource()
+}
+
+func (s *sourceSession) EnsureDir(ctx context.Context, parentID, name string) (string, error) {
+	state, err := s.drive.sourceState(s.source, s.version)
+	if err != nil {
+		return "", err
+	}
+	id, err := withPanSourceToken(ctx, s.drive, state, func(token string) (string, error) {
+		return s.drive.client.EnsureDir(ctx, token, parentID, name)
+	})
+	if err != nil {
+		return "", err
+	}
+	return id, s.checkSource()
+}
+
+func (s *sourceSession) MoveFiles(ctx context.Context, targetDirID string, fileIDs []string) error {
+	state, err := s.drive.sourceState(s.source, s.version)
+	if err != nil {
+		return err
+	}
+	_, err = withPanSourceToken(ctx, s.drive, state, func(token string) (struct{}, error) {
+		return struct{}{}, s.drive.client.MoveFiles(ctx, token, targetDirID, fileIDs)
+	})
+	if err != nil {
+		return err
+	}
+	return s.checkSource()
+}
+
+func (s *sourceSession) RenameFile(ctx context.Context, fileID, name string) error {
+	state, err := s.drive.sourceState(s.source, s.version)
+	if err != nil {
+		return err
+	}
+	_, err = withPanSourceToken(ctx, s.drive, state, func(token string) (struct{}, error) {
+		return struct{}{}, s.drive.client.RenameFile(ctx, token, fileID, name)
+	})
+	if err != nil {
+		return err
+	}
+	return s.checkSource()
+}
+
+func (s *sourceSession) UploadFile(ctx context.Context, dirID, name string, content []byte) error {
+	state, err := s.drive.sourceState(s.source, s.version)
+	if err != nil {
+		return err
+	}
+	_, err = withPanSourceToken(ctx, s.drive, state, func(token string) (struct{}, error) {
+		return struct{}{}, s.drive.client.UploadFile(ctx, token, dirID, name, content)
 	})
 	if err != nil {
 		return err

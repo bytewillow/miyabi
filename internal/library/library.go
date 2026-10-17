@@ -159,6 +159,12 @@ func (s *Service) SetMediaNotifier(notifier export.MediaNotifier) {
 	s.localScanner.SetMediaNotifier(notifier)
 }
 
+// SetPanOrganize binds the in-place 115 organization mode probe. The local
+// scanner keeps the export behavior: it imports files, not 115 media.
+func (s *Service) SetPanOrganize(probe func() bool) {
+	s.scanner.SetPanOrganize(probe)
+}
+
 func (s *Service) Scan(ctx context.Context, job tasks.Job) error {
 	if err := s.scanLock.Lock(ctx); err != nil {
 		return err

@@ -52,6 +52,11 @@ func (r *scanRun) staleFiles() predicate.File {
 // in the scan checkpoint so a failed removal or notification can be retried.
 // The caller holds the export configuration and source locks.
 func (r *scanRun) cleanupReassignedExports(ctx context.Context, cfg export.Config) error {
+	if r.scanner.panOrganizeEnabled() {
+		// In-place organization has no local export tree to clean.
+		r.payload.ObsoleteCodes = nil
+		return nil
+	}
 	for _, code := range r.payload.ObsoleteCodes {
 		if err := ctx.Err(); err != nil {
 			return err
@@ -118,7 +123,11 @@ func (r *scanRun) prepareReconcile(ctx context.Context, cfg export.Config) (map[
 			if !cached {
 				continue
 			}
-			if cfg.EmbyDir != "" {
+			if r.scanner.panOrganizeEnabled() {
+				if _, err := scrape.OrganizeLocalMovie(ctx, r.scanner.db, r.session, r.payload.Source, record, r.scanner.images); err != nil {
+					return nil, fmt.Errorf("organize local movie %s: %w", record.Code, err)
+				}
+			} else if cfg.EmbyDir != "" {
 				if _, err := scrape.ExportLocalMovie(cfg.EmbyDir, cfg.PublicURL, cfg.STRMToken, record, r.scanner.images); err != nil {
 					return nil, fmt.Errorf("export local movie %s: %w", record.Code, err)
 				}
@@ -145,7 +154,7 @@ func (r *scanRun) reconcileTx(ctx context.Context, tx *ent.Tx, cfg export.Config
 		return err
 	}
 	r.payload.Scan.RemovedMovies += len(removed)
-	if cfg.EmbyDir != "" && len(removed) > 0 {
+	if cfg.EmbyDir != "" && len(removed) > 0 && !r.scanner.panOrganizeEnabled() {
 		tx.OnCommit(func(next ent.Committer) ent.Committer {
 			return ent.CommitFunc(func(ctx context.Context, tx *ent.Tx) error {
 				if err := next.Commit(ctx, tx); err != nil {

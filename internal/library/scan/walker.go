@@ -44,6 +44,7 @@ type Scanner struct {
 	pace      func(context.Context) error
 	notifier  export.MediaNotifier
 	cleanup   CleanupConfig
+	organize  func() bool
 }
 
 // New creates a new Scanner with the provided dependencies.
@@ -64,6 +65,17 @@ func New(driveSvc *drive.Drive, db *ent.Client, images *mediaimage.Cache, tasksS
 
 func (s *Scanner) SetMediaNotifier(notifier export.MediaNotifier) {
 	s.notifier = notifier
+}
+
+// SetPanOrganize binds the in-place 115 organization mode probe.
+func (s *Scanner) SetPanOrganize(probe func() bool) {
+	s.organize = probe
+}
+
+// panOrganizeEnabled reports whether scans organize scraped movies in
+// place on 115 instead of repairing the local STRM export tree.
+func (s *Scanner) panOrganizeEnabled() bool {
+	return s.organize != nil && s.organize()
 }
 
 // Run executes a library scan job: it walks the media directories, matches NFOs

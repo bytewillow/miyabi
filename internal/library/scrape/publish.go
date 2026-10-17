@@ -3,6 +3,7 @@ package scrape
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/ppxb/miyabi/internal/database"
 	"github.com/ppxb/miyabi/internal/domain"
@@ -102,12 +103,42 @@ func (service *Service) publishMovie(ctx context.Context, sess drive.Session, jo
 				service.dirMu.Unlock()
 				return &domain.RetryError{Cause: domain.E(domain.KindConflict, "媒体文件索引已更新，等待重新导出", nil)}
 			}
-			if _, err := export.WriteMedia(cfg, input.Code, input.Document, videos, poster, fanart); err != nil {
-				return err
-			}
-			oldDir, err := service.removePreviousExport(ctx, cfg.EmbyDir, record, input.Code)
-			if err != nil {
-				return err
+			var oldDir string
+			var placed map[string]OrganizedFile
+			if service.panOrganize() {
+				result, err := OrganizePanMovie(ctx, sess, OrganizeInput{
+					Source: input.Source, Code: input.Code, Doc: input.Document,
+					Videos: videos, Poster: poster, Fanart: fanart,
+				})
+				if err != nil {
+					return err
+				}
+				placed = make(map[string]OrganizedFile, len(result.Files))
+				for _, file := range result.Files {
+					placed[file.ID] = file
+				}
+				// The snapshot must describe the organized state, or the
+				// next scan would see the moved files as changed content
+				// and scrape the movie again.
+				organized := make([]pan.File, 0, len(videos))
+				for _, video := range videos {
+					target := placed[video.ID]
+					organized = append(organized, pan.File{
+						ID: video.ID, ParentID: target.ParentID, Name: target.Name,
+						SHA1: video.SHA1, Size: video.Size,
+					})
+				}
+				snapshot.Videos = VideoFingerprint(organized)
+				oldDir = service.previousDir(ctx, cfg.EmbyDir, record, input.Code)
+			} else {
+				if _, err := export.WriteMedia(cfg, input.Code, input.Document, videos, poster, fanart); err != nil {
+					return err
+				}
+				var err error
+				oldDir, err = service.removePreviousExport(ctx, cfg.EmbyDir, record, input.Code)
+				if err != nil {
+					return err
+				}
 			}
 			return ent.WithTx(ctx, service.db, func(tx *ent.Tx) error {
 				update := tx.Movie.UpdateOneID(input.MovieID).SetCode(input.Code).SetMetadata(&input.Document).
@@ -121,6 +152,16 @@ func (service *Service) publishMovie(ctx context.Context, sess drive.Session, jo
 				}
 				if err := tx.Task.UpdateOneID(job.ID).SetPayload(encoded).Exec(ctx); err != nil {
 					return err
+				}
+				for _, entry := range files {
+					target, ok := placed[entry.FileID]
+					if !ok || (entry.ParentID == target.ParentID && entry.Name == target.Name && entry.Path == target.Path) {
+						continue
+					}
+					if err := tx.File.UpdateOneID(entry.ID).
+						SetParentID(target.ParentID).SetName(target.Name).SetPath(target.Path).Exec(ctx); err != nil {
+						return err
+					}
 				}
 				if service.mediaNotifier != nil && cfg.EmbyDir != "" {
 					if oldDir != "" {
@@ -137,12 +178,36 @@ func (service *Service) publishMovie(ctx context.Context, sess drive.Session, jo
 		return nil, fmt.Errorf("publish movie: %w", err)
 	}
 
-	subTask := service.subtitleTask(input.MetadataPayload, videos)
+	// Subtitle downloads target the exported .strm; in-place organization
+	// has no local file to sit beside, so it skips the subtitle follow-up.
+	var subTask *SubtitleTask
+	if !service.panOrganize() {
+		subTask = service.subtitleTask(input.MetadataPayload, videos)
+	}
 
 	if service.notifier != nil {
 		service.notifier.NotifyLibraryChanged()
 	}
 	return subTask, nil
+}
+
+// previousDir returns the notification path of the movie's previous code,
+// mirroring removePreviousExport's guards without touching the local tree:
+// in-place organization leaves nothing behind locally to remove.
+func (service *Service) previousDir(ctx context.Context, root string, record *ent.Movie, code string) string {
+	if root == "" || record.MetadataSnapshot == nil || record.MetadataSnapshot.Code == "" {
+		return ""
+	}
+	oldCode := record.MetadataSnapshot.Code
+	oldDir := export.EmbyMovieDir(root, oldCode)
+	if strings.EqualFold(oldDir, export.EmbyMovieDir(root, code)) {
+		return ""
+	}
+	claimed, err := service.db.Movie.Query().Where(movie.CodeEQ(oldCode), movie.IDNEQ(record.ID)).Exist(ctx)
+	if err != nil || claimed {
+		return ""
+	}
+	return oldDir
 }
 
 // subtitleTask targets the .strm exported for a movie's video. Multi-part

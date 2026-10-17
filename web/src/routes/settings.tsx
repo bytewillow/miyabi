@@ -10,6 +10,7 @@ import { EmbySection } from '@/features/settings/emby-section'
 import { NetworkSection } from '@/features/settings/network-section'
 import { PanSection } from '@/features/settings/pan-section'
 import { PlexSection } from '@/features/settings/plex-section'
+import { OrganizeSection } from '@/features/settings/organize-section'
 import { StrmSection } from '@/features/settings/strm-section'
 import { PrivacySection } from '@/features/settings/privacy-section'
 import { SubscriptionSection } from '@/features/settings/subscription-section'
@@ -40,6 +41,8 @@ function SettingsPage() {
           <PlexSection />
           <Separator />
           <StrmSection />
+          <Separator />
+          <OrganizeSection />
           <Separator />
           <PanSection />
           <Separator />

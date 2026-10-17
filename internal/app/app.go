@@ -32,6 +32,7 @@ import (
 	"github.com/ppxb/miyabi/internal/network"
 	"github.com/ppxb/miyabi/internal/netx"
 	"github.com/ppxb/miyabi/internal/offline"
+	"github.com/ppxb/miyabi/internal/organize"
 	"github.com/ppxb/miyabi/internal/plex"
 	"github.com/ppxb/miyabi/internal/strm"
 	"github.com/ppxb/miyabi/internal/strmurl"
@@ -178,12 +179,15 @@ func New(cfg *config.Config, logger *slog.Logger) (*App, error) {
 	}
 	embyCfg, _ := embySvc.Config(ctx)
 	strmSvc := strmurl.NewService(store.Client, exportMgr, embyCfg.PublicURL)
+	organizeSvc := organize.NewService(store.Client)
 	// This is the only cycle: library -> Emby -> catalogue -> library.
 	// Bind it before starting task pools or accepting requests.
 	notifier := mediaNotifierSet{embySvc, plexSvc}
 	libSvc.SetMediaNotifier(notifier)
+	libSvc.SetPanOrganize(organizeSvc.PanEnabled)
 	scrapeSvc := scrape.New(store.Client, driveSvc, metadataSvc, images, taskSvc, scrape.Dependencies{
 		ExportManager: exportMgr, MediaNotifier: notifier, Subtitles: subtitleSvc,
+		Organize: organizeSvc,
 	})
 	maintenanceSvc, err := maintenance.New(cfg.DataDir, store.Client, images, scrapeSvc)
 	if err != nil {
@@ -227,6 +231,7 @@ func New(cfg *config.Config, logger *slog.Logger) (*App, error) {
 		Emby:           embySvc,
 		Plex:           plexSvc,
 		STRMSettings:   strmSvc,
+		Organize:       organizeSvc,
 		Frontend:       miyabi.Frontend(),
 		STRMToken:      cfg.STRMToken,
 		STRMProxy:      cfg.STRMProxy,

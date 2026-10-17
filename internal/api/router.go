@@ -31,6 +31,7 @@ type Dependencies struct {
 	Emby           EmbyManager
 	Plex           PlexManager
 	STRMSettings   STRMSettingsManager
+	Organize       OrganizeSettingsManager
 	Frontend       fs.FS
 	STRMToken      string
 	STRMProxy      bool
@@ -92,6 +93,8 @@ func NewRouter(deps Dependencies) *gin.Engine {
 	settingsAPI.POST("/plex/test", plexTestHandler(deps.Plex))
 	settingsAPI.GET("/strm", strmConfigHandler(deps.STRMSettings))
 	settingsAPI.PUT("/strm", strmUpdateHandler(deps.STRMSettings))
+	settingsAPI.GET("/organize", organizeConfigHandler(deps.Organize))
+	settingsAPI.PUT("/organize", organizeUpdateHandler(deps.Organize))
 	settingsAPI.GET("/subscription", subscriptionSettingsGetHandler(deps.Monitor))
 	settingsAPI.PUT("/subscription", subscriptionSettingsUpdateHandler(deps.Monitor))
 

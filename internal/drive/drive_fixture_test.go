@@ -106,6 +106,22 @@ func (c *stubClient) DeleteFiles(ctx context.Context, token, parentID string, fi
 	return nil
 }
 
+func (c *stubClient) EnsureDir(ctx context.Context, token, parentID, name string) (string, error) {
+	return "", nil
+}
+
+func (c *stubClient) MoveFiles(ctx context.Context, token, targetDirID string, fileIDs []string) error {
+	return nil
+}
+
+func (c *stubClient) RenameFile(ctx context.Context, token, fileID, name string) error {
+	return nil
+}
+
+func (c *stubClient) UploadFile(ctx context.Context, token, dirID, name string, content []byte) error {
+	return nil
+}
+
 func (c *stubClient) RemoveOffline(ctx context.Context, token, hash string) error {
 	if c.removeOffline != nil {
 		return c.removeOffline(ctx, token, hash)
