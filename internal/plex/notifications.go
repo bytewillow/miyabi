@@ -132,6 +132,7 @@ func (s *Service) deliver(ctx context.Context, cfg Config, rows []*ent.PlexNotif
 			continue
 		}
 		refreshed[key] = true
+		s.refreshCloudDriveCache(ctx, cfg, plexPath)
 		if err := s.client.refresh(ctx, cfg, section.Key, plexPath); err != nil {
 			return err
 		}

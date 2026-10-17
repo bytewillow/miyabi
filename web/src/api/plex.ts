@@ -14,6 +14,9 @@ export type PlexConfig = {
   token: string
   media_path: string
   local_dir?: string
+  clouddrive2_endpoint: string
+  clouddrive2_token: string
+  clouddrive2_path: string
 }
 
 export type PlexServerInfo = {

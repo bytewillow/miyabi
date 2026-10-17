@@ -1,0 +1,41 @@
+// Trimmed from the official CloudDrive2 gRPC API (clouddrive.proto v1.0.17).
+// Only the two RPCs Miyabi uses are kept: GetSystemInfo (connectivity test)
+// and GetSubFiles (directory listing; forceRefresh bypasses the directory
+// cache). CloudDriveFile keeps only the fields Miyabi reads — everything
+// else on the wire lands in unknown fields and is discarded, which is safe
+// because field numbers and types below match the official definitions.
+syntax = "proto3";
+
+package clouddrive;
+
+option go_package = "github.com/ppxb/miyabi/internal/clouddrive/pb;pb";
+
+import "google/protobuf/empty.proto";
+
+service CloudDriveFileSrv {
+  rpc GetSystemInfo(google.protobuf.Empty) returns (CloudDriveSystemInfo) {}
+  rpc GetSubFiles(ListSubFileRequest) returns (stream SubFilesReply) {}
+}
+
+message ListSubFileRequest {
+  string path = 1;
+  bool forceRefresh = 2;
+  optional bool checkExpires = 3;
+}
+
+message SubFilesReply { repeated CloudDriveFile subFiles = 1; }
+
+message CloudDriveFile {
+  string id = 1;
+  string name = 2;
+  string fullPathName = 3;
+  int64 size = 4;
+  bool isDirectory = 30;
+}
+
+message CloudDriveSystemInfo {
+  bool IsLogin = 1;
+  string UserName = 2;
+  bool SystemReady = 3;
+  optional string SystemMessage = 4;
+}

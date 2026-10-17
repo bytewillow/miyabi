@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/ppxb/miyabi/internal/clouddrive"
 	"github.com/ppxb/miyabi/internal/database"
 	"github.com/ppxb/miyabi/internal/domain"
 	"github.com/ppxb/miyabi/internal/ent"
@@ -24,6 +25,9 @@ type Service struct {
 	cancel            context.CancelFunc
 	wg                sync.WaitGroup
 	updateMu          sync.Mutex
+	cdMu              sync.Mutex
+	cdKey             string
+	cdClient          *clouddrive.Client
 }
 
 // NewService restores configuration and starts the notification worker.

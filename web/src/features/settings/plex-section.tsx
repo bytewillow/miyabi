@@ -15,6 +15,9 @@ interface PlexFormData {
   server_url: string
   token: string
   media_path: string
+  clouddrive2_endpoint: string
+  clouddrive2_token: string
+  clouddrive2_path: string
 }
 
 function configToFormData(config?: PlexConfig | null): PlexFormData {
@@ -22,7 +25,10 @@ function configToFormData(config?: PlexConfig | null): PlexFormData {
     enabled: config?.enabled ?? false,
     server_url: config?.server_url ?? '',
     token: config?.token ?? '',
-    media_path: config?.media_path ?? ''
+    media_path: config?.media_path ?? '',
+    clouddrive2_endpoint: config?.clouddrive2_endpoint ?? '',
+    clouddrive2_token: config?.clouddrive2_token ?? '',
+    clouddrive2_path: config?.clouddrive2_path ?? ''
   }
 }
 
@@ -43,7 +49,10 @@ export function PlexSection() {
     (current.enabled !== initial.enabled ||
       current.server_url !== initial.server_url ||
       current.token !== initial.token ||
-      current.media_path !== initial.media_path)
+      current.media_path !== initial.media_path ||
+      current.clouddrive2_endpoint !== initial.clouddrive2_endpoint ||
+      current.clouddrive2_token !== initial.clouddrive2_token ||
+      current.clouddrive2_path !== initial.clouddrive2_path)
 
   // Keep the saved form visible until the query observer receives the same
   // values. Clearing it in the success callback can briefly reveal old data.
@@ -128,7 +137,10 @@ export function PlexSection() {
       enabled: current.enabled,
       server_url: serverUrl,
       token,
-      media_path: current.media_path.trim()
+      media_path: current.media_path.trim(),
+      clouddrive2_endpoint: current.clouddrive2_endpoint.trim(),
+      clouddrive2_token: current.clouddrive2_token.trim(),
+      clouddrive2_path: current.clouddrive2_path.trim()
     }
 
     updateConfig.mutate(payload, {
@@ -186,6 +198,43 @@ export function PlexSection() {
               placeholder="/media"
               disabled={disabled}
               onChange={e => updateField('media_path', e.target.value)}
+            />
+          </SettingRow>
+
+          <SettingRow
+            title="CloudDrive2 地址"
+            description="可选。媒体库经 CloudDrive2 挂载时填写其 gRPC 地址，通知前先强制刷新目录缓存，否则新建目录在挂载里不可见。留空则不刷新"
+          >
+            <Input
+              value={current.clouddrive2_endpoint}
+              placeholder="192.168.1.10:19798"
+              disabled={disabled}
+              onChange={e => updateField('clouddrive2_endpoint', e.target.value)}
+            />
+          </SettingRow>
+
+          <SettingRow
+            title="CloudDrive2 API Token"
+            description="在 CloudDrive2 设置中生成的 API 令牌"
+          >
+            <Input
+              type="password"
+              value={current.clouddrive2_token}
+              placeholder="填入 CloudDrive2 API Token"
+              disabled={disabled}
+              onChange={e => updateField('clouddrive2_token', e.target.value)}
+            />
+          </SettingRow>
+
+          <SettingRow
+            title="CloudDrive2 媒体库路径"
+            description="上面「Plex 媒体库路径」在 CloudDrive2 内的对应路径，如 /PLEX/AV"
+          >
+            <Input
+              value={current.clouddrive2_path}
+              placeholder="/PLEX/AV"
+              disabled={disabled}
+              onChange={e => updateField('clouddrive2_path', e.target.value)}
             />
           </SettingRow>
 
