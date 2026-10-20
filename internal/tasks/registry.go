@@ -26,11 +26,21 @@ type Handler struct {
 	Handle   HandleFunc
 	Finished FinishedFunc
 	Retry    func(error) (time.Duration, bool)
+	// FreeRetry marks failures that requeue without consuming the retry
+	// budget: the failure is an upstream condition (a rate limit asking for
+	// quiet), not the task's own fault.
+	FreeRetry func(error) bool
 }
 
 // WithRetry opts a handler into bounded retries using its own error policy.
 func (h Handler) WithRetry(policy func(error) (time.Duration, bool)) Handler {
 	h.Retry = policy
+	return h
+}
+
+// WithFreeRetry marks the failures that requeue for free alongside WithRetry.
+func (h Handler) WithFreeRetry(classify func(error) bool) Handler {
+	h.FreeRetry = classify
 	return h
 }
 

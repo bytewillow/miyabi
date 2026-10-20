@@ -5,7 +5,21 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/ppxb/miyabi/internal/domain"
 )
+
+func TestAPIErrorRateLimitClassifiesAsRateLimited(t *testing.T) {
+	err := fmt.Errorf("ensure 115 movie directory: %w", &apiError{Code: RateLimitCode, Message: "已达到当前访问上限"})
+	if kind := domain.KindOf(err); kind != domain.KindRateLimited {
+		t.Fatalf("kind = %v, want %v", kind, domain.KindRateLimited)
+	}
+	delay, retry := domain.RetryDelay(err)
+	if !retry || delay < 2*time.Minute {
+		t.Fatalf("RetryDelay = (%v, %v), want a retry after at least 2m", delay, retry)
+	}
+}
 
 func TestAPIErrorExposesPublicMessageWithoutLosingDiagnostics(t *testing.T) {
 	want := "本视频正在云端转码中，请耐心等待"

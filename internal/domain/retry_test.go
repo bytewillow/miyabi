@@ -21,6 +21,7 @@ func TestRetryDelayClassifiesCauses(t *testing.T) {
 		{"connection", &net.OpError{Op: "dial", Err: errors.New("refused")}, true, 0},
 		{"truncated", io.ErrUnexpectedEOF, true, 0},
 		{"rate limit", &HTTPError{StatusCode: 429, RetryAfter: time.Minute}, true, time.Minute},
+		{"account rate limit", E(KindRateLimited, "limited", nil), true, 2 * time.Minute},
 		{"unavailable", &HTTPError{StatusCode: 503}, true, 0},
 		{"forbidden", &HTTPError{StatusCode: 403}, false, 0},
 		{"missing", &HTTPError{StatusCode: 404}, false, 0},

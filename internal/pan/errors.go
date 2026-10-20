@@ -38,6 +38,9 @@ func (err *apiError) PublicMessage() string {
 }
 
 func (err *apiError) DomainKind() domain.Kind {
+	if err.Code == RateLimitCode {
+		return domain.KindRateLimited
+	}
 	switch {
 	case err.Is(ErrUnauthorized):
 		return domain.KindUnauthorized

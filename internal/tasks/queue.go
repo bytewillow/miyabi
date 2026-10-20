@@ -128,12 +128,24 @@ func (q *Queue) Finish(ctx context.Context, id int, runError error) error {
 			}
 		}
 		if registered && handler.Retry != nil {
-			if wait, retry := handler.Retry(runError); retry && record.RetryCount < MaxRetries {
-				// Backoff starts at 15s; jitter avoids a simultaneous retry burst.
-				delay := (15 * time.Second) << record.RetryCount
-				delay += time.Duration(rand.Int64N(int64(delay / 4)))
-				return update.SetStatus(task.StatusQueued).AddRetryCount(1).
-					SetRetryAt(time.Now().Add(max(wait, delay))).SetError(message).Exec(ctx)
+			if wait, retry := handler.Retry(runError); retry {
+				if handler.FreeRetry != nil && handler.FreeRetry(runError) {
+					// A rate limit is the upstream asking for quiet, not
+					// this task failing: requeue on the limit's own backoff
+					// without consuming the retry budget, so a batch rides
+					// out the episode instead of dying in it.
+					delay := max(wait, 15*time.Second)
+					delay += time.Duration(rand.Int64N(int64(delay / 4)))
+					return update.SetStatus(task.StatusQueued).
+						SetRetryAt(time.Now().Add(delay)).SetError(message).Exec(ctx)
+				}
+				if record.RetryCount < MaxRetries {
+					// Backoff starts at 15s; jitter avoids a simultaneous retry burst.
+					delay := (15 * time.Second) << record.RetryCount
+					delay += time.Duration(rand.Int64N(int64(delay / 4)))
+					return update.SetStatus(task.StatusQueued).AddRetryCount(1).
+						SetRetryAt(time.Now().Add(max(wait, delay))).SetError(message).Exec(ctx)
+				}
 			}
 		}
 		update.ClearRetryAt()

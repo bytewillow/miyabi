@@ -26,6 +26,12 @@ const (
 type Client struct {
 	http  *resty.Client
 	media *http.Client
+
+	gate rateGate
+
+	tokenMu     sync.Mutex
+	cachedToken uploadTokenWire
+	cachedAt    time.Time
 }
 
 const (
@@ -261,6 +267,9 @@ type apiPayload interface {
 
 func apiRequest[T apiPayload](client *Client, request *resty.Request, method, endpoint, action string) (T, error) {
 	var result T
+	if err := client.gate.check(); err != nil {
+		return result, err
+	}
 	response, err := client.request(request, method, endpoint)
 	if err != nil {
 		return result, err
@@ -273,12 +282,15 @@ func apiRequest[T apiPayload](client *Client, request *resty.Request, method, en
 		return result, fmt.Errorf("decode 115 %s: %w", action, err)
 	}
 	if err := envelope.err(); err != nil {
+		client.gate.observe(err)
 		return result, err
 	}
 	if err := json.Unmarshal(response.Body(), &result); err != nil {
 		return result, fmt.Errorf("decode 115 %s: %w", action, err)
 	}
-	return result, result.err()
+	err = result.err()
+	client.gate.observe(err)
+	return result, err
 }
 
 // Resty fills empty UA headers; this private marker preserves an explicit empty UA.

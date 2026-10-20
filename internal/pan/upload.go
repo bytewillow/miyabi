@@ -81,7 +81,7 @@ func (client *Client) UploadFile(ctx context.Context, accessToken, dirID, name s
 	if init.Data.Bucket == "" || init.Data.Object == "" {
 		return fmt.Errorf("upload %s: 115 returned unsupported status %d", name, init.Data.Status)
 	}
-	token, err := client.uploadToken(ctx, accessToken)
+	token, err := client.stsToken(ctx, accessToken)
 	if err != nil {
 		return err
 	}
@@ -97,6 +97,25 @@ func (client *Client) uploadInit(ctx context.Context, accessToken string, form m
 		apiURL+"/open/upload/init",
 		"upload init",
 	)
+}
+
+// uploadTokenTTL bounds reuse of the STS credentials from
+// /open/upload/get_token: one fetch serves every sidecar of a scrape batch
+// instead of one fetch per file.
+const uploadTokenTTL = 10 * time.Minute
+
+func (client *Client) stsToken(ctx context.Context, accessToken string) (uploadTokenWire, error) {
+	client.tokenMu.Lock()
+	defer client.tokenMu.Unlock()
+	if client.cachedToken.Data.AccessKeyID != "" && time.Since(client.cachedAt) < uploadTokenTTL {
+		return client.cachedToken, nil
+	}
+	token, err := client.uploadToken(ctx, accessToken)
+	if err != nil {
+		return uploadTokenWire{}, err
+	}
+	client.cachedToken, client.cachedAt = token, time.Now()
+	return token, nil
 }
 
 func (client *Client) uploadToken(ctx context.Context, accessToken string) (uploadTokenWire, error) {

@@ -49,6 +49,11 @@ func ParseRetryAfter(value string, now time.Time) time.Duration {
 	return 0
 }
 
+// IsRateLimited reports whether err is classified as a rate-limit failure.
+func IsRateLimited(err error) bool {
+	return IsKind(err, KindRateLimited)
+}
+
 // RetryDelay only admits known transient failures. Permanent domain errors
 // stop traversal; joined candidate failures may recover if any candidate can.
 func RetryDelay(err error) (time.Duration, bool) {
@@ -60,7 +65,9 @@ func RetryDelay(err error) (time.Duration, bool) {
 		case KindInvalid, KindUnauthorized, KindNotFound, KindConflict, KindCanceled:
 			return 0, false
 		case KindRateLimited:
-			return 0, true
+			// Account-level rate limits clear over minutes, not seconds;
+			// a shorter wait just re-trips the limit.
+			return 2 * time.Minute, true
 		}
 	}
 	if hint, ok := err.(interface {

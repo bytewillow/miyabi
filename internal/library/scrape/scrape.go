@@ -263,6 +263,11 @@ func (service *Service) Finished(ctx context.Context, tx *ent.Tx, job tasks.Job,
 	if result == nil {
 		return tasks.ChangeOffline, nil
 	}
+	if domain.IsRateLimited(result) {
+		// The queue requeues this attempt for free once the account limit
+		// clears; the movie is waiting, not failed.
+		return 0, nil
+	}
 	input, err := tasks.DecodePayload[MetadataPayload](job.Payload)
 	if err != nil {
 		return 0, err
